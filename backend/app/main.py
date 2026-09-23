@@ -10,7 +10,12 @@ from sqlalchemy import DateTime, Float, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from app.rules import classify
-from app.alarm_polish import present_list_row, present_push_payload, rewrite_db_row
+
+ALARM_LEVEL = "报警"
+
+
+def level_css(level: str) -> str:
+    return "alarm" if level == ALARM_LEVEL else "ok"
 
 
 class Settings(BaseSettings):
@@ -43,6 +48,18 @@ class Reading(Base):
     note: Mapped[str] = mapped_column(String(200))
     created_by: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+def present_row(row: Reading) -> dict:
+    return {
+        "id": row.id,
+        "site": row.site,
+        "ch4_pct": row.ch4_pct,
+        "level": row.level,
+        "note": row.note,
+        "created_by": row.created_by,
+        "css": level_css(row.level),
+    }
 
 
 class LoginIn(BaseModel):
@@ -126,7 +143,7 @@ def list_readings(_user: dict = Depends(current_user)):
     db = SessionLocal()
     try:
         rows = db.query(Reading).order_by(Reading.id.desc()).all()
-        return [present_list_row(r) for r in rows]
+        return [present_row(r) for r in rows]
     finally:
         db.close()
 
@@ -134,7 +151,6 @@ def list_readings(_user: dict = Depends(current_user)):
 @app.post("/api/readings", status_code=201)
 async def create_reading(body: ReadingIn, user: dict = Depends(require_writer)):
     level, note = classify(body.ch4_pct)
-    level, note = rewrite_db_row(level, note)
     db = SessionLocal()
     try:
         row = Reading(
@@ -148,8 +164,7 @@ async def create_reading(body: ReadingIn, user: dict = Depends(require_writer)):
         db.add(row)
         db.commit()
         db.refresh(row)
-        payload = {"id": row.id, "site": row.site, "ch4_pct": row.ch4_pct, "level": row.level, "note": row.note}
-        payload = present_push_payload(payload)
+        payload = present_row(row)
     finally:
         db.close()
     dead = []
