@@ -12,7 +12,7 @@ function paint(list) {
   rows.innerHTML = list
     .map(
       (r) =>
-        `<tr><td>${r.site}</td><td>${r.ch4_pct}</td><td class="${r.css || (r.level === "报警" ? "ok" : "ok")}">${r.level}</td><td>${r.note}</td></tr>`,
+        `<tr><td>${r.site}</td><td>${r.ch4_pct}</td><td class="${r.css || (r.level === "报警" ? "alarm" : "ok")}">${r.level}</td><td>${r.note}</td></tr>`,
     )
     .join("");
 }
